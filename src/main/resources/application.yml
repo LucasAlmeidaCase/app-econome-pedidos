@@ -1,0 +1,7 @@
+spring:
+  application:
+    name: app-econome-pedidos
+  datasource:
+    url: jdbc:mysql://localhost:3306/econome_db_pedidos?useUnicode=true&characterEncoding=utf8&useSSL=false&useTimezone=true&serverTimezone=America/Sao_Paulo
+    username: root
+    password: '12345'

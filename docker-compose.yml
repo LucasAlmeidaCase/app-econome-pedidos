@@ -1,0 +1,11 @@
+services:
+  mysql-econome-pedidos:
+    image: 'mysql:8.0'
+    volumes:
+      - ./mysql-data-pedidos:/var/lib/mysql
+    environment:
+      - 'MYSQL_DATABASE=econome_db_pedidos'
+      - 'MYSQL_ROOT_PASSWORD=12345'
+      - TZ=America/Sao_Paulo
+    ports:
+      - '3306:3306'

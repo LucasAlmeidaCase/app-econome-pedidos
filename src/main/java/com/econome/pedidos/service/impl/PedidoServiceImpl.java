@@ -13,6 +13,11 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
 
+/**
+ * Implementação do contrato de serviço de Pedidos.
+ * Aplica regras transacionais no nível de serviço e delega persistência ao repositório.
+ * Utiliza MapStruct para mapeamento entre DTOs e entidade, favorecendo legibilidade e testabilidade.
+ */
 @Service
 @RequiredArgsConstructor
 public class PedidoServiceImpl implements PedidoService {

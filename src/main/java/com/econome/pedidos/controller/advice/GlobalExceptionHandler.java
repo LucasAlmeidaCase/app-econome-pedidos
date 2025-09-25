@@ -19,24 +19,41 @@ import org.springframework.web.servlet.mvc.method.annotation.ResponseEntityExcep
 import java.time.OffsetDateTime;
 import java.util.List;
 
+/**
+ * Handler global de exceções da API.
+ * Centraliza a conversão de exceções do domínio e de validação em respostas HTTP padronizadas
+ * usando o payload ProblemDetails.
+ */
 @ControllerAdvice
 public class GlobalExceptionHandler extends ResponseEntityExceptionHandler {
 
+    /**
+     * Tradução para 404 quando um pedido não é encontrado.
+     */
     @ExceptionHandler(PedidoNaoEncontradoException.class)
     public ResponseEntity<ProblemDetails> handlePedidoNaoEncontrado(PedidoNaoEncontradoException ex, HttpServletRequest req) {
         return buildProblem(HttpStatus.NOT_FOUND, "Recurso não encontrado", ex.getMessage(), req.getRequestURI(), List.of());
     }
 
+    /**
+     * Erros de validação de parâmetros e tipos incorretos (400).
+     */
     @ExceptionHandler({ConstraintViolationException.class, MethodArgumentTypeMismatchException.class})
     public ResponseEntity<ProblemDetails> handleValidation(Exception ex, HttpServletRequest req) {
         return buildProblem(HttpStatus.BAD_REQUEST, "Requisição inválida", ex.getMessage(), req.getRequestURI(), List.of());
     }
 
+    /**
+     * Erros não tratados (500).
+     */
     @ExceptionHandler(Exception.class)
     public ResponseEntity<ProblemDetails> handleGeneric(Exception ex, HttpServletRequest req) {
         return buildProblem(HttpStatus.INTERNAL_SERVER_ERROR, "Erro interno do servidor", ex.getMessage(), req.getRequestURI(), List.of());
     }
 
+    /**
+     * Erros de validação de body (@Valid) com detalhes por campo.
+     */
     @Override
     protected ResponseEntity<Object> handleMethodArgumentNotValid(MethodArgumentNotValidException ex,
                                                                   HttpHeaders headers,
@@ -80,4 +97,3 @@ public class GlobalExceptionHandler extends ResponseEntityExceptionHandler {
         return ResponseEntity.status(status).body(body);
     }
 }
-

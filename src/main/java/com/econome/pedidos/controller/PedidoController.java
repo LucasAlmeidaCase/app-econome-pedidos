@@ -19,6 +19,9 @@ import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import io.swagger.v3.oas.annotations.media.Content;
 
+/**
+ * Controller REST responsável por expor os endpoints do contexto de "Pedidos".
+ */
 @RestController
 @RequestMapping("/api/pedidos")
 @Validated
@@ -28,6 +31,11 @@ public class PedidoController {
 
     private final PedidoService pedidoService;
 
+    /**
+     * Lista todos os pedidos.
+     *
+     * @return lista de pedidos no formato de resposta.
+     */
     @GetMapping
     @Operation(summary = "Listar pedidos", description = "Retorna a lista de todos os pedidos")
     @ApiResponse(responseCode = "200", description = "Lista retornada com sucesso")
@@ -35,6 +43,12 @@ public class PedidoController {
         return pedidoService.listarTodos();
     }
 
+    /**
+     * Busca um pedido pelo identificador.
+     *
+     * @param id identificador do pedido
+     * @return pedido encontrado ou 404 se não existir
+     */
     @GetMapping("/{id}")
     @Operation(summary = "Buscar pedido por ID", description = "Retorna o pedido correspondente ao ID informado")
     @ApiResponses({
@@ -45,6 +59,12 @@ public class PedidoController {
         return pedidoService.buscarPorId(id);
     }
 
+    /**
+     * Cria um novo pedido.
+     *
+     * @param request dados do pedido a ser criado
+     * @return pedido criado com cabeçalho Location apontando para o novo recurso
+     */
     @PostMapping
     @Operation(summary = "Criar pedido", description = "Cria um novo pedido")
     @ApiResponses({
@@ -61,6 +81,13 @@ public class PedidoController {
         return ResponseEntity.created(location).body(criado);
     }
 
+    /**
+     * Atualiza um pedido existente.
+     *
+     * @param id      identificador do pedido a ser atualizado
+     * @param request dados do pedido
+     * @return pedido atualizado
+     */
     @PutMapping("/{id}")
     @Operation(summary = "Atualizar pedido", description = "Atualiza os dados de um pedido existente")
     @ApiResponses({
@@ -72,6 +99,12 @@ public class PedidoController {
         return pedidoService.atualizar(id, request);
     }
 
+    /**
+     * Exclui um pedido.
+     *
+     * @param id identificador do pedido a ser excluído
+     * @return 204 em caso de sucesso
+     */
     @DeleteMapping("/{id}")
     @Operation(summary = "Excluir pedido", description = "Remove um pedido pelo ID")
     @ApiResponses({

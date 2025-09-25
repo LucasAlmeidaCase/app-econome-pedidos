@@ -4,6 +4,7 @@ import com.econome.pedidos.enums.SituacaoPedido;
 import com.econome.pedidos.enums.TipoPedido;
 import jakarta.persistence.*;
 import lombok.Data;
+import lombok.EqualsAndHashCode;
 import lombok.NoArgsConstructor;
 
 import java.io.Serial;
@@ -13,8 +14,9 @@ import java.time.ZonedDateTime;
 
 @Entity
 @Data
-@NoArgsConstructor
 @Table(name = "pedidos")
+@NoArgsConstructor
+@EqualsAndHashCode(onlyExplicitlyIncluded = true)
 public class Pedido implements Serializable {
 
     @Serial
@@ -22,6 +24,7 @@ public class Pedido implements Serializable {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
+    @EqualsAndHashCode.Include
     private Long id;
 
     @Column(name = "data_emissao_pedido")

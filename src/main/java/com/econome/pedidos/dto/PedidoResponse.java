@@ -9,6 +9,10 @@ import io.swagger.v3.oas.annotations.media.Schema;
 import java.math.BigDecimal;
 import java.time.ZonedDateTime;
 
+/**
+ * DTO de saída (Record) representando um Pedido retornado pela API.
+ * Evita expor a entidade JPA diretamente e deixa o contrato claro para consumidores externos.
+ */
 @JsonInclude(JsonInclude.Include.NON_NULL)
 @Schema(name = "PedidoResponse", description = "Dados retornados para consultas e operações de pedidos")
 public record PedidoResponse(

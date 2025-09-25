@@ -13,6 +13,9 @@ import jakarta.validation.constraints.Size;
 import java.math.BigDecimal;
 import java.time.ZonedDateTime;
 
+/**
+ * DTO de entrada (Record) para criação/atualização de Pedido.
+ */
 @JsonInclude(JsonInclude.Include.NON_NULL)
 @Schema(name = "PedidoRequest", description = "Dados de entrada para criação/atualização de pedidos")
 public record PedidoRequest(

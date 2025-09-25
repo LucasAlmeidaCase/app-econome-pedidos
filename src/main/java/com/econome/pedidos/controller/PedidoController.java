@@ -13,25 +13,44 @@ import org.springframework.web.servlet.support.ServletUriComponentsBuilder;
 import java.net.URI;
 import java.util.List;
 
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.tags.Tag;
+import io.swagger.v3.oas.annotations.responses.ApiResponse;
+import io.swagger.v3.oas.annotations.responses.ApiResponses;
+import io.swagger.v3.oas.annotations.media.Content;
+
 @RestController
 @RequestMapping("/api/pedidos")
 @Validated
 @RequiredArgsConstructor
+@Tag(name = "Pedidos", description = "Operações de CRUD para o recurso Pedido")
 public class PedidoController {
 
     private final PedidoService pedidoService;
 
     @GetMapping
+    @Operation(summary = "Listar pedidos", description = "Retorna a lista de todos os pedidos")
+    @ApiResponse(responseCode = "200", description = "Lista retornada com sucesso")
     public List<PedidoResponse> listar() {
         return pedidoService.listarTodos();
     }
 
     @GetMapping("/{id}")
+    @Operation(summary = "Buscar pedido por ID", description = "Retorna o pedido correspondente ao ID informado")
+    @ApiResponses({
+            @ApiResponse(responseCode = "200", description = "Pedido encontrado"),
+            @ApiResponse(responseCode = "404", description = "Pedido não encontrado", content = @Content)
+    })
     public PedidoResponse buscarPorId(@PathVariable Long id) {
         return pedidoService.buscarPorId(id);
     }
 
     @PostMapping
+    @Operation(summary = "Criar pedido", description = "Cria um novo pedido")
+    @ApiResponses({
+            @ApiResponse(responseCode = "201", description = "Pedido criado com sucesso"),
+            @ApiResponse(responseCode = "400", description = "Dados inválidos", content = @Content)
+    })
     public ResponseEntity<PedidoResponse> criar(@Valid @RequestBody PedidoRequest request) {
         PedidoResponse criado = pedidoService.criar(request);
         URI location = ServletUriComponentsBuilder
@@ -43,11 +62,22 @@ public class PedidoController {
     }
 
     @PutMapping("/{id}")
+    @Operation(summary = "Atualizar pedido", description = "Atualiza os dados de um pedido existente")
+    @ApiResponses({
+            @ApiResponse(responseCode = "200", description = "Pedido atualizado com sucesso"),
+            @ApiResponse(responseCode = "400", description = "Dados inválidos", content = @Content),
+            @ApiResponse(responseCode = "404", description = "Pedido não encontrado", content = @Content)
+    })
     public PedidoResponse atualizar(@PathVariable Long id, @Valid @RequestBody PedidoRequest request) {
         return pedidoService.atualizar(id, request);
     }
 
     @DeleteMapping("/{id}")
+    @Operation(summary = "Excluir pedido", description = "Remove um pedido pelo ID")
+    @ApiResponses({
+            @ApiResponse(responseCode = "204", description = "Pedido excluído com sucesso"),
+            @ApiResponse(responseCode = "404", description = "Pedido não encontrado", content = @Content)
+    })
     public ResponseEntity<Void> excluir(@PathVariable Long id) {
         pedidoService.excluir(id);
         return ResponseEntity.noContent().build();

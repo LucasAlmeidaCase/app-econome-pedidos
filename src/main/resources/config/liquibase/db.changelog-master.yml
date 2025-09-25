@@ -1,0 +1,4 @@
+databaseChangeLog:
+  - include:
+      file: changelog/db.changelog-0001-create-pedidos.yml
+      relativeToChangelogFile: true

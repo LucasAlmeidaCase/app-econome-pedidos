@@ -1,0 +1,44 @@
+databaseChangeLog:
+  - changeSet:
+      id: 0001-create-pedidos
+      author: lucas
+      changes:
+        - createTable:
+            tableName: pedidos
+            columns:
+              - column:
+                  name: id
+                  type: BIGINT
+                  autoIncrement: true
+                  constraints:
+                    primaryKey: true
+                    nullable: false
+              - column:
+                  name: data_emissao_pedido
+                  type: DATETIME(6)
+                  constraints:
+                    nullable: true
+              - column:
+                  name: numero_pedido
+                  type: VARCHAR(100)
+                  constraints:
+                    nullable: true
+              - column:
+                  name: tipo_pedido
+                  type: VARCHAR(30)
+                  constraints:
+                    nullable: true
+              - column:
+                  name: situacao_pedido
+                  type: VARCHAR(30)
+                  constraints:
+                    nullable: true
+              - column:
+                  name: valor_total
+                  type: DECIMAL(19,2)
+                  constraints:
+                    nullable: true
+      rollback:
+        - dropTable:
+            tableName: pedidos
+

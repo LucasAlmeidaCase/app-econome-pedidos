@@ -5,3 +5,9 @@ spring:
     url: jdbc:mysql://localhost:3306/econome_db_pedidos?useUnicode=true&characterEncoding=utf8&useSSL=false&useTimezone=true&serverTimezone=America/Sao_Paulo
     username: root
     password: '12345'
+  jpa:
+    hibernate:
+      ddl-auto: none
+  liquibase:
+    enabled: true
+    change-log: classpath:config/liquibase/db.changelog-master.yml

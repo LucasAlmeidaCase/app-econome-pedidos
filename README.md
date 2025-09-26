@@ -51,29 +51,52 @@ Integra-se de forma event-driven com o microserviço de Transações (Python). Q
 
 ---
 
-## 🐳 Docker Compose
+## 🐳 Docker / Execução Containerizada
 
-O `docker-compose.yml` deste repositório agora orquestra tanto o serviço do banco quanto a aplicação Spring Boot:
+### Rede compartilhada entre microserviços
 
-- `mysql-econome-pedidos` (imagem `mysql:8.0`)
-  - Porta: `3306:3306`
-  - Variáveis: `MYSQL_DATABASE=econome_db_pedidos`, `MYSQL_ROOT_PASSWORD=12345`, `TZ=America/Sao_Paulo`
-  - Volume: `./mysql-data-pedidos:/var/lib/mysql`
+Para integração com o microserviço de Transações rodando em outro repositório/compose, utilize uma rede Docker externa comum:
 
-- `app-econome-pedidos` (builda a partir do Dockerfile)
-  - Porta: `8080:8080`
-  - Depende do MySQL
-  - Variáveis de ambiente lidas do arquivo `.env` (já fornecido)
-  - Build automático do JAR via Maven multi-stage
+```bash
+docker network create econome-net   # executar uma única vez
+```
 
-Passos:
+### Serviços orquestrados neste repositório
 
-1. Subir todos os serviços (banco e aplicação):
-   - `docker-compose up -d`
-2. Parar os serviços:
-   - `docker-compose down`
+- `mysql-econome-pedidos` (MySQL 8)
+- `app-econome-pedidos` (Spring Boot)
 
-> O arquivo `.env` centraliza as variáveis de ambiente para ambos os serviços. Ajuste conforme necessário.
+### Passos de subida
+
+```bash
+docker compose up -d --build
+```
+
+Isso iniciará MySQL + API Pedidos. O container automaticamente lê variáveis do `.env`.
+
+### Conectar a API de Transações (já subida em outro compose)
+
+Após subir o serviço de transações (Python):
+
+```bash
+docker network connect econome-net app-econome-transacoes || true
+```
+
+Ou configure a rede no compose do serviço de transações conforme README daquele serviço.
+
+### Variáveis de ambiente principais (.env)
+
+| Variável | Papel | Exemplo |
+|----------|-------|---------|
+| TRANSACOES_API_BASE_URL | Base URL do microserviço de transações | <http://app-econome-transacoes:5001> |
+| SPRING_DATASOURCE_URL | JDBC do MySQL | jdbc:mysql://mysql-econome-pedidos:3306/econome_db_pedidos |
+| SPRING_DATASOURCE_USERNAME | Usuário DB | root |
+| SPRING_DATASOURCE_PASSWORD | Senha DB | 12345 |
+| SPRING_JPA_HIBERNATE_DDL_AUTO | Estratégia DDL | validate |
+| SPRING_LIQUIBASE_ENABLED | Ativa Liquibase | true |
+| SPRING_PROFILES_ACTIVE | Profile Spring | default |
+
+Fallbacks estão definidos em `application.yml` usando placeholders.
 
 ---
 
@@ -188,23 +211,29 @@ Regras:
 
 ## 🔄 Integração com Transações
 
-Fluxo:
+Fluxo resumido:
 
-1. Pedido persistido/atualizado com `situacaoPedido=FATURADO`.
-1. Evento de domínio publicado (após commit).
-1. Listener faz POST para API de Transações com payload contendo: `descricao`, `valor`, `pedido_id`, `tipo_transacao`, e campos de vencimento/pagamento.
-1. Microserviço de Transações guarda referência lógica e expõe consulta por `pedido_id`.
+1. Pedido com `situacaoPedido=FATURADO` é confirmado no banco.
+2. Evento de domínio pós-commit dispara o cliente HTTP.
+3. Envia POST `/transacao` (serviço Python) com descrição padronizada e `pedido_id`.
+4. Transação fica disponível para leitura via `/transacoes/pedido/{pedido_id}`.
 
-Benefícios:
+Configuração de rede necessária (ambientes containerizados separados):
 
-- Evita duplicidade manual de lançamento financeiro.
-- Garante consistência temporal (somente após commit de banco).
-- Permite enriquecimento posterior (ex: dashboards unificados).
+```bash
+docker network create econome-net                # uma única vez
+docker network connect econome-net app-econome-transacoes
+```
 
-Considerações Futuras:
+Verificação rápida:
+```bash
+docker compose exec app-econome-pedidos sh -c "apk add --no-cache curl || true; curl -s http://app-econome-transacoes:5001/openapi | head"
+```
 
-- Outbox + consumidor assíncrono (resiliência)
-- Idempotência explícita por `pedido_id` (checagem antes de criar)
+Próximos aprimoramentos planejados:
+- Outbox + mensageria (resiliência)
+- Idempotência baseada em `pedido_id`
+- Monitoramento / tracing distribuído
 
 ---
 

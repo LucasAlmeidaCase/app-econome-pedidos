@@ -2,9 +2,12 @@
 
 API REST em Java 21 com Spring Boot para gerenciamento de Pedidos. Expõe operações CRUD, validação com Bean Validation, mapeamento com MapStruct, migrações com Liquibase e documentação automática via OpenAPI/Swagger UI.
 
+Integra-se de forma event-driven com o microserviço de Transações (Python). Quando um Pedido é criado ou atualizado com situação `FATURADO`, um Domain Event dispara a criação automática da transação financeira correspondente (referência lógica via `pedido_id`).
+
 ---
 
 ## 🧰 Tecnologias Utilizadas
+
 - Java 21
 - Spring Boot 3.5.x
 - Spring Web
@@ -16,10 +19,13 @@ API REST em Java 21 com Spring Boot para gerenciamento de Pedidos. Expõe opera�
 - springdoc-openapi (Swagger UI)
 - Maven
 - Docker & Docker Compose
+- RestClient (cliente HTTP moderno do Spring)
+- Domain Events (`@TransactionalEventListener`) para integração pós-commit
 
 ---
 
 ## ✅ Pré-requisitos
+
 - JDK 21 (obrigatório)
 - Maven 3.8+
 - MySQL 8 (local ou via Docker Compose)
@@ -61,6 +67,7 @@ O `docker-compose.yml` deste repositório agora orquestra tanto o serviço do ba
   - Build automático do JAR via Maven multi-stage
 
 Passos:
+
 1. Subir todos os serviços (banco e aplicação):
    - `docker-compose up -d`
 2. Parar os serviços:
@@ -73,6 +80,7 @@ Passos:
 ## ⚙️ Configuração de Ambiente
 
 As principais configurações estão em `src/main/resources/config/application.yml` e `.env`:
+
 - URL JDBC: `jdbc:mysql://mysql-econome-pedidos:3306/econome_db_pedidos?...`
 - Usuário: `root`
 - Senha: `12345`
@@ -83,7 +91,9 @@ Ajuste as credenciais conforme seu ambiente, se necessário.
 ---
 
 ## 🌐 Documentação OpenAPI
+
 Após iniciar a aplicação:
+
 - Swagger UI: `http://localhost:8080/swagger-ui.html`
 - OpenAPI JSON: `http://localhost:8080/v3/api-docs`
 
@@ -92,7 +102,8 @@ A configuração do OpenAPI está em `com.econome.pedidos.config.OpenApiConfigur
 ---
 
 ## 🧱 Estrutura do Projeto
-```
+
+```text
 app-econome-pedidos/
 ├── src/
 │   ├── main/
@@ -122,6 +133,7 @@ app-econome-pedidos/
 ---
 
 ## 🧠 Principais Funcionalidades
+
 - CRUD de Pedidos (GET/POST/PUT/DELETE)
 - Validação de payload com Bean Validation (@Valid)
 - Mapeamento DTO/Entidade com MapStruct
@@ -144,6 +156,7 @@ app-econome-pedidos/
 ---
 
 ## 🔐 Observações sobre Qualidade e Arquitetura
+
 - Padrões de código e nomenclatura consistentes.
 - Organização por domínios/camadas (controller, service, repository, model, config, exception).
 - SOLID/DDD: serviços com interfaces, injeção por construtor, entidades enxutas.
@@ -152,5 +165,190 @@ app-econome-pedidos/
 
 ---
 
+## 🧾 Modelagem (Resumo)
+
+Entidade Pedido (principais campos):
+
+- `id` (Long)
+- `numeroPedido` (String) – identificador legível (ex: PED-129)
+- `situacaoPedido` (Enum) – `ABERTO`, `FATURADO`, `CANCELADO` (extensível)
+- `dataEmissaoPedido` (OffsetDateTime/ZonedDateTime)
+- `valorTotalPedido` (BigDecimal)
+- Campos financeiros opcionais quando situacao = FATURADO:
+   - `dataVencimentoTransacao` (LocalDate)
+   - `pagoTransacao` (Boolean)
+   - `dataPagamentoTransacao` (LocalDate)
+
+Regras:
+
+- Somente `FATURADO` aciona criação de transação.
+- `dataPagamentoTransacao` só é considerada se `pagoTransacao=true`.
+
+---
+
+## 🔄 Integração com Transações
+
+Fluxo:
+
+1. Pedido persistido/atualizado com `situacaoPedido=FATURADO`.
+1. Evento de domínio publicado (após commit).
+1. Listener faz POST para API de Transações com payload contendo: `descricao`, `valor`, `pedido_id`, `tipo_transacao`, e campos de vencimento/pagamento.
+1. Microserviço de Transações guarda referência lógica e expõe consulta por `pedido_id`.
+
+Benefícios:
+
+- Evita duplicidade manual de lançamento financeiro.
+- Garante consistência temporal (somente após commit de banco).
+- Permite enriquecimento posterior (ex: dashboards unificados).
+
+Considerações Futuras:
+
+- Outbox + consumidor assíncrono (resiliência)
+- Idempotência explícita por `pedido_id` (checagem antes de criar)
+
+---
+
+## 🌐 Endpoints Principais
+
+| Método | Caminho         | Descrição            |
+|--------|-----------------|----------------------|
+| GET    | /pedidos        | Lista pedidos        |
+| GET    | /pedidos/{id}   | Busca por id         |
+| POST   | /pedidos        | Cria novo pedido     |
+| PUT    | /pedidos/{id}   | Atualiza pedido      |
+| DELETE | /pedidos/{id}   | Remove pedido        |
+
+> Paginação e filtros (situacao, período) planejados no roadmap.
+
+---
+
+## 🧪 Exemplos de Requisição
+
+### Criar Pedido ABERTO
+
+```http
+POST /pedidos
+Content-Type: application/json
+
+{
+   "numeroPedido": "PED-200",
+   "situacaoPedido": "ABERTO",
+   "dataEmissaoPedido": "2025-09-26T10:05:00-03:00",
+   "valorTotalPedido": 450.00
+}
+```
+
+### Criar Pedido FATURADO (gera transação)
+
+```http
+POST /pedidos
+Content-Type: application/json
+
+{
+   "numeroPedido": "PED-201",
+   "situacaoPedido": "FATURADO",
+   "dataEmissaoPedido": "2025-09-26T11:12:00-03:00",
+   "valorTotalPedido": 999.90,
+   "dataVencimentoTransacao": "2025-10-15",
+   "pagoTransacao": true,
+   "dataPagamentoTransacao": "2025-09-29"
+}
+```
+
+### Atualizar Pedido para FATURADO
+
+```http
+PUT /pedidos/201
+Content-Type: application/json
+
+{
+   "numeroPedido": "PED-201",
+   "situacaoPedido": "FATURADO",
+   "dataEmissaoPedido": "2025-09-26T11:12:00-03:00",
+   "valorTotalPedido": 999.90,
+   "dataVencimentoTransacao": "2025-10-20"
+}
+```
+
+### Resposta (exemplo)
+
+```json
+{
+   "id": 42,
+   "numeroPedido": "PED-201",
+   "situacaoPedido": "FATURADO",
+   "dataEmissaoPedido": "2025-09-26T11:12:00-03:00",
+   "valorTotalPedido": 999.90
+}
+```
+
+### Erro de Validação
+
+```json
+{
+   "status": 400,
+   "titulo": "Erro de validação",
+   "violacoes": [
+      { "campo": "numeroPedido", "mensagem": "não pode estar em branco" }
+   ]
+}
+```
+
+---
+
+## 🛠️ Domain Events
+
+- `PedidoCriadoEvent` / `PedidoAtualizadoEvent` (ou equivalente consolidado) publicados após commit.
+- Listener usa RestClient configurado para URL base da API de Transações.
+- Falhas atualmente logadas (retry futuro planejado).
+
+Ponto de melhoria: implementar padrão Transactional Outbox para confiabilidade em cenários de indisponibilidade externa.
+
+---
+
+## ❗ Padrão de Erros
+
+ControllerAdvice retorna payload inspirado em RFC 7807 com campos para violações de validação.
+
+Exemplo recurso não encontrado:
+
+```json
+{
+   "status": 404,
+   "titulo": "Recurso não encontrado",
+   "detalhe": "Pedido 999 inexistente"
+}
+```
+
+---
+
+## ⚙️ Variáveis de Ambiente Relevantes
+
+| Variável | Descrição | Exemplo |
+|----------|-----------|---------|
+| SPRING_PROFILES_ACTIVE | Profile ativo | dev |
+| APP_TRANSACTIONS_BASE_URL | URL da API de Transações | <http://localhost:5001> |
+| TZ | Timezone do container | America/Sao_Paulo |
+
+Fallback: caso `APP_TRANSACTIONS_BASE_URL` não esteja definido, o client pode usar valor padrão interno.
+
+---
+
+## 🚀 Roadmap / Próximas Melhorias
+
+- Paginação e filtros avançados (situação, intervalo datas)
+- Idempotência de integração (checar se transação já existe antes de criar)
+- Outbox + mensageria (Kafka) para confiabilidade
+- Testes de contrato entre serviços (Pact / Spring Cloud Contract)
+- Observabilidade: tracing distribuído (OpenTelemetry)
+- Versionamento de API (v1, v2)
+- Endpoint de busca por número de pedido
+- Cache de leitura para GET /pedidos/{id}
+
+---
+
+---
+
 ## 👤 Autor
+
 - Desenvolvido por **Lucas Almeida**.

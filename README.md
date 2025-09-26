@@ -2,7 +2,7 @@
 
 API REST em Java 21 com Spring Boot para gerenciamento de Pedidos. Expõe operações CRUD, validação com Bean Validation, mapeamento com MapStruct, migrações com Liquibase e documentação automática via OpenAPI/Swagger UI.
 
-Integra-se de forma event-driven com o microserviço de Transações (Python). Quando um Pedido é criado ou atualizado com situação `FATURADO`, um Domain Event dispara a criação automática da transação financeira correspondente (referência lógica via `pedido_id`).
+Integra-se de forma event-driven com o microserviço de Transações (Python). Quando um Pedido é criado ou atualizado com situação `FATURADO`, um Domain Event dispara a criação ou atualização da transação financeira correspondente (referência lógica via `pedido_id`). A integração foi reorganizada em subpastas (event, listener, client, config, dto) para melhor separação de responsabilidades.
 
 ---
 
@@ -20,7 +20,7 @@ Integra-se de forma event-driven com o microserviço de Transações (Python). Q
 - Maven
 - Docker & Docker Compose
 - RestClient (cliente HTTP moderno do Spring)
-- Domain Events (`@TransactionalEventListener`) para integração pós-commit
+- Domain Events (`@TransactionalEventListener`) para integração pós-commit (criação e atualização de transações)
 
 ---
 
@@ -88,7 +88,8 @@ Ou configure a rede no compose do serviço de transações conforme README daque
 
 | Variável | Papel | Exemplo |
 |----------|-------|---------|
-| TRANSACOES_API_BASE_URL | Base URL do microserviço de transações | <http://app-econome-transacoes:5001> |
+| TRANSACOES_API_BASE_URL | Base URL do microserviço de Transações (mapeia para `transacoes.api.base-url`) | <http://app-econome-transacoes:5001> |
+| TRANSACOES_API_ENABLED | Habilita/desabilita integração (mapeia para `transacoes.api.enabled`) | true |
 | SPRING_DATASOURCE_URL | JDBC do MySQL | jdbc:mysql://mysql-econome-pedidos:3306/econome_db_pedidos |
 | SPRING_DATASOURCE_USERNAME | Usuário DB | root |
 | SPRING_DATASOURCE_PASSWORD | Senha DB | 12345 |
@@ -132,23 +133,30 @@ app-econome-pedidos/
 │   ├── main/
 │   │   ├── java/
 │   │   │   └── com/econome/
-│   │   │       ├── domain/                 # Entidades JPA (Pedido)
+│   │   │       ├── domain/                       # Entidades JPA (Pedido)
 │   │   │       └── pedidos/
-│   │   │           ├── config/             # Configurações (JPA, OpenAPI)
-│   │   │           ├── controller/         # Controllers REST
-│   │   │           │   └── advice/         # Tratamento global de erros (ControllerAdvice)
-│   │   │           ├── dto/                # DTOs e Mapper (MapStruct)
-│   │   │           ├── enums/              # Enums de domínio
-│   │   │           ├── exception/          # Exceções específicas e payload de erro
-│   │   │           └── service/            # Serviços (regras de negócio)
+│   │   │           ├── config/                   # Configurações (OpenAPI, etc.)
+│   │   │           ├── controller/               # Controllers REST
+│   │   │           │   └── advice/               # Tratamento global de erros
+│   │   │           ├── dto/                      # DTOs e Mapper (MapStruct)
+│   │   │           ├── enums/                    # Enums de domínio
+│   │   │           ├── exception/                # Exceções e payload de erro
+│   │   │           ├── integration/
+│   │   │           │   └── transacao/            # Integração com microserviço de Transações
+│   │   │           │       ├── client/           # Cliente HTTP (RestClient)
+│   │   │           │       ├── config/           # Propriedades + bean RestClient
+│   │   │           │       ├── dto/              # Payloads externos (create)
+│   │   │           │       ├── event/            # Domain events (criação/atualização)
+│   │   │           │       └── listener/         # Reação pós-commit (upsert transação)
+│   │   │           └── service/                  # Serviços (regras de negócio)
 │   │   └── resources/
 │   │       └── config/
-│   │           ├── application.yml         # Configuração da aplicação
-│   │           └── liquibase/              # Changelogs do Liquibase
+│   │           ├── application.yml               # Configuração da aplicação
+│   │           └── liquibase/                    # Changelogs do Liquibase
 │   └── test/
-├── .env                                    # Variáveis de ambiente para Docker Compose
-├── docker-compose.yml                      # Orquestração dos serviços
-├── Dockerfile                              # Imagem Docker da aplicação
+├── .env                                          # Variáveis de ambiente
+├── docker-compose.yml                            # Orquestração dos serviços
+├── Dockerfile                                    # Build de imagem
 ├── pom.xml
 └── README.md
 ```
@@ -194,9 +202,9 @@ Entidade Pedido (principais campos):
 
 - `id` (Long)
 - `numeroPedido` (String) – identificador legível (ex: PED-129)
-- `situacaoPedido` (Enum) – `ABERTO`, `FATURADO`, `CANCELADO` (extensível)
-- `dataEmissaoPedido` (OffsetDateTime/ZonedDateTime)
-- `valorTotalPedido` (BigDecimal)
+- `situacaoPedido` (Enum) – `PENDENTE`, `FATURADO`, `CANCELADO`
+- `dataEmissaoPedido` (ZonedDateTime)
+- `valorTotal` (BigDecimal)
 - Campos financeiros opcionais quando situacao = FATURADO:
    - `dataVencimentoTransacao` (LocalDate)
    - `pagoTransacao` (Boolean)
@@ -204,19 +212,20 @@ Entidade Pedido (principais campos):
 
 Regras:
 
-- Somente `FATURADO` aciona criação de transação.
+- Somente `FATURADO` aciona criação ou atualização de transação.
 - `dataPagamentoTransacao` só é considerada se `pagoTransacao=true`.
 
 ---
 
 ## 🔄 Integração com Transações
 
-Fluxo resumido:
+Fluxo resumido (upsert):
 
-1. Pedido com `situacaoPedido=FATURADO` é confirmado no banco.
-2. Evento de domínio pós-commit dispara o cliente HTTP.
-3. Envia POST `/transacao` (serviço Python) com descrição padronizada e `pedido_id`.
-4. Transação fica disponível para leitura via `/transacoes/pedido/{pedido_id}`.
+1. Pedido criado FATURADO → evento (`PedidoCriadoEvent`) dispara criação (POST `/transacao`).
+2. Pedido atualizado para FATURADO (transição) → criação se ainda não existir.
+3. Pedido que já era FATURADO é alterado (valor, pago, vencimento, etc.) → evento (`PedidoAtualizadoEvent`) tenta PUT `/transacoes/pedido/{id}`.
+4. Se PUT falhar (ex.: transação ausente) listener faz fallback para criação.
+5. Transação consultável via `/transacoes/pedido/{pedido_id}` (serviço Python).
 
 Configuração de rede necessária (ambientes containerizados separados):
 
@@ -241,11 +250,11 @@ Próximos aprimoramentos planejados:
 
 | Método | Caminho         | Descrição            |
 |--------|-----------------|----------------------|
-| GET    | /pedidos        | Lista pedidos        |
-| GET    | /pedidos/{id}   | Busca por id         |
-| POST   | /pedidos        | Cria novo pedido     |
-| PUT    | /pedidos/{id}   | Atualiza pedido      |
-| DELETE | /pedidos/{id}   | Remove pedido        |
+| GET    | /api/pedidos        | Lista pedidos        |
+| GET    | /api/pedidos/{id}   | Busca por id         |
+| POST   | /api/pedidos        | Cria novo pedido     |
+| PUT    | /api/pedidos/{id}   | Atualiza pedido      |
+| DELETE | /api/pedidos/{id}   | Remove pedido        |
 
 > Paginação e filtros (situacao, período) planejados no roadmap.
 
@@ -253,7 +262,7 @@ Próximos aprimoramentos planejados:
 
 ## 🧪 Exemplos de Requisição
 
-### Criar Pedido ABERTO
+### Criar Pedido PENDENTE
 
 ```http
 POST /pedidos
@@ -261,9 +270,9 @@ Content-Type: application/json
 
 {
    "numeroPedido": "PED-200",
-   "situacaoPedido": "ABERTO",
+   "situacaoPedido": "PENDENTE",
    "dataEmissaoPedido": "2025-09-26T10:05:00-03:00",
-   "valorTotalPedido": 450.00
+   "valorTotal": 450.00
 }
 ```
 
@@ -277,7 +286,7 @@ Content-Type: application/json
    "numeroPedido": "PED-201",
    "situacaoPedido": "FATURADO",
    "dataEmissaoPedido": "2025-09-26T11:12:00-03:00",
-   "valorTotalPedido": 999.90,
+   "valorTotal": 999.90,
    "dataVencimentoTransacao": "2025-10-15",
    "pagoTransacao": true,
    "dataPagamentoTransacao": "2025-09-29"
@@ -294,7 +303,7 @@ Content-Type: application/json
    "numeroPedido": "PED-201",
    "situacaoPedido": "FATURADO",
    "dataEmissaoPedido": "2025-09-26T11:12:00-03:00",
-   "valorTotalPedido": 999.90,
+   "valorTotal": 999.90,
    "dataVencimentoTransacao": "2025-10-20"
 }
 ```
@@ -307,7 +316,7 @@ Content-Type: application/json
    "numeroPedido": "PED-201",
    "situacaoPedido": "FATURADO",
    "dataEmissaoPedido": "2025-09-26T11:12:00-03:00",
-   "valorTotalPedido": 999.90
+   "valorTotal": 999.90
 }
 ```
 
@@ -327,9 +336,10 @@ Content-Type: application/json
 
 ## 🛠️ Domain Events
 
-- `PedidoCriadoEvent` / `PedidoAtualizadoEvent` (ou equivalente consolidado) publicados após commit.
-- Listener usa RestClient configurado para URL base da API de Transações.
-- Falhas atualmente logadas (retry futuro planejado).
+- `PedidoCriadoEvent` / `PedidoAtualizadoEvent` publicados após o commit.
+- Listeners localizados em `integration/transacao/listener` usam `TransacoesClient` (RestClient) para POST/PUT.
+- Fallback de criação aplicado quando atualização não encontra transação.
+- Falhas: apenas logadas (sem retry) – roadmap inclui Outbox/mensageria.
 
 Ponto de melhoria: implementar padrão Transactional Outbox para confiabilidade em cenários de indisponibilidade externa.
 
@@ -356,23 +366,24 @@ Exemplo recurso não encontrado:
 | Variável | Descrição | Exemplo |
 |----------|-----------|---------|
 | SPRING_PROFILES_ACTIVE | Profile ativo | dev |
-| APP_TRANSACTIONS_BASE_URL | URL da API de Transações | <http://localhost:5001> |
+| TRANSACOES_API_BASE_URL | URL da API de Transações | <http://localhost:5001> |
+| TRANSACOES_API_ENABLED | Ativa/desativa integração | true |
 | TZ | Timezone do container | America/Sao_Paulo |
 
-Fallback: caso `APP_TRANSACTIONS_BASE_URL` não esteja definido, o client pode usar valor padrão interno.
+Fallback: caso `TRANSACOES_API_BASE_URL` não esteja definido, o client usa a configuração padrão em `application.yml` (se definida).
 
 ---
 
 ## 🚀 Roadmap / Próximas Melhorias
 
-- Paginação e filtros avançados (situação, intervalo datas)
-- Idempotência de integração (checar se transação já existe antes de criar)
+- Paginação e filtros avançados (situação, período)
+- Idempotência (checar existência antes de fallback)
 - Outbox + mensageria (Kafka) para confiabilidade
-- Testes de contrato entre serviços (Pact / Spring Cloud Contract)
-- Observabilidade: tracing distribuído (OpenTelemetry)
+- Testes de contrato (Pact / Spring Cloud Contract)
+- Observabilidade (OpenTelemetry tracing + logs estruturados)
 - Versionamento de API (v1, v2)
-- Endpoint de busca por número de pedido
-- Cache de leitura para GET /pedidos/{id}
+- Endpoint de busca por número do pedido
+- Cache/ETag para GET /api/pedidos/{id}
 
 ---
 

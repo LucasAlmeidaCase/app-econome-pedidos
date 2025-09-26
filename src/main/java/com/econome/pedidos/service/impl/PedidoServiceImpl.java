@@ -5,9 +5,12 @@ import com.econome.pedidos.dto.PedidoMapper;
 import com.econome.pedidos.dto.PedidoRequest;
 import com.econome.pedidos.dto.PedidoResponse;
 import com.econome.pedidos.exception.PedidoNaoEncontradoException;
+import com.econome.pedidos.enums.SituacaoPedido;
+import com.econome.pedidos.integration.transacao.PedidoCriadoEvent;
 import com.econome.pedidos.service.PedidoService;
 import com.econome.repository.PedidoRepository;
 import lombok.RequiredArgsConstructor;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -17,6 +20,8 @@ import java.util.List;
  * Implementação do contrato de serviço de Pedidos.
  * Aplica regras transacionais no nível de serviço e delega persistência ao repositório.
  * Utiliza MapStruct para mapeamento entre DTOs e entidade, favorecendo legibilidade e testabilidade.
+ * Publica evento de domínio após criação para integração assíncrona com o microserviço de transações
+ * (promovendo baixo acoplamento e evitando chamadas HTTP dentro da transação JPA).
  */
 @Service
 @RequiredArgsConstructor
@@ -24,12 +29,23 @@ public class PedidoServiceImpl implements PedidoService {
 
     private final PedidoRepository pedidoRepository;
     private final PedidoMapper pedidoMapper;
+    private final ApplicationEventPublisher eventPublisher;
 
     @Override
     @Transactional
     public PedidoResponse criar(PedidoRequest request) {
         Pedido entity = pedidoMapper.toEntity(request);
         Pedido salvo = pedidoRepository.save(entity);
+        eventPublisher.publishEvent(new PedidoCriadoEvent(
+                salvo.getId(),
+                salvo.getNumeroPedido(),
+                salvo.getTipoPedido(),
+                salvo.getValorTotal(),
+                request.situacaoPedido() == SituacaoPedido.FATURADO,
+                request.dataVencimentoTransacao(),
+                request.pagoTransacao(),
+                request.dataPagamentoTransacao()
+        ));
         return pedidoMapper.toResponse(salvo);
     }
 

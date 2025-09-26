@@ -11,6 +11,7 @@ import jakarta.validation.constraints.Positive;
 import jakarta.validation.constraints.Size;
 
 import java.math.BigDecimal;
+import java.time.LocalDate;
 import java.time.ZonedDateTime;
 
 /**
@@ -28,6 +29,13 @@ public record PedidoRequest(
         @Schema(description = "Situação atual do pedido (PENDENTE, FATURADO, CANCELADO)")
         @NotNull(message = "situacaoPedido é obrigatório") SituacaoPedido situacaoPedido,
         @Schema(description = "Valor total do pedido (> 0)", example = "150.00")
-        @NotNull(message = "valorTotal é obrigatório") @Positive(message = "valorTotal deve ser maior que zero") BigDecimal valorTotal
+        @NotNull(message = "valorTotal é obrigatório") @Positive(message = "valorTotal deve ser maior que zero") BigDecimal valorTotal,
+
+        // ---- Campos auxiliares para criação automática de transação quando situacaoPedido=FATURADO ----
+        @Schema(description = "Data de vencimento da transação gerada (apenas se FATURADO)", example = "2025-09-30")
+        @JsonFormat(pattern = "yyyy-MM-dd") LocalDate dataVencimentoTransacao,
+        @Schema(description = "Indicador se a transação já está paga (apenas se FATURADO)") Boolean pagoTransacao,
+        @Schema(description = "Data de pagamento da transação (apenas se pagoTransacao=true)", example = "2025-09-30")
+        @JsonFormat(pattern = "yyyy-MM-dd") LocalDate dataPagamentoTransacao
 ) {
 }

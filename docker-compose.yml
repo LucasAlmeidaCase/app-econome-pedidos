@@ -9,18 +9,21 @@ services:
       - TZ=America/Sao_Paulo
     ports:
       - '3306:3306'
+    networks:
+      - econome-net
 
   app-econome-pedidos:
     build: .
     depends_on:
       - mysql-econome-pedidos
     environment:
-      SPRING_DATASOURCE_URL: jdbc:mysql://mysql-econome-pedidos:3306/econome_db_pedidos?useSSL=false&allowPublicKeyRetrieval=true&serverTimezone=America/Sao_Paulo
-      SPRING_DATASOURCE_USERNAME: root
-      SPRING_DATASOURCE_PASSWORD: 12345
-      SPRING_JPA_HIBERNATE_DDL_AUTO: validate
-      SPRING_LIQUIBASE_ENABLED: 'true'
+      # Hostname do serviço de transações na rede externa econome-net
+      TRANSACOES_API_BASE_URL: ${TRANSACOES_API_BASE_URL}
     ports:
       - '8080:8080'
+    networks:
+      - econome-net
 
-# Rede padrão do Docker Compose será usada para comunicação entre app e banco
+networks:
+  econome-net:
+    external: true

@@ -2,14 +2,16 @@ spring:
   application:
     name: app-econome-pedidos
   datasource:
-    url: jdbc:mysql://localhost:3306/econome_db_pedidos?useUnicode=true&characterEncoding=utf8&useSSL=false&useTimezone=true&serverTimezone=America/Sao_Paulo
-    username: root
-    password: '12345'
+    # Todos os valores abaixo podem ser sobrescritos via variáveis de ambiente
+    # definidas no .env ou no ambiente do container.
+    url: ${SPRING_DATASOURCE_URL:jdbc:mysql://mysql-econome-pedidos:3306/econome_db_pedidos?useUnicode=true&characterEncoding=utf8&useSSL=false&useTimezone=true&serverTimezone=America/Sao_Paulo}
+    username: ${SPRING_DATASOURCE_USERNAME:root}
+    password: ${SPRING_DATASOURCE_PASSWORD:12345}
   jpa:
     hibernate:
-      ddl-auto: none
+      ddl-auto: ${SPRING_JPA_HIBERNATE_DDL_AUTO:none}
   liquibase:
-    enabled: true
+    enabled: ${SPRING_LIQUIBASE_ENABLED:true}
     change-log: classpath:config/liquibase/db.changelog-master.yml
 springdoc:
   api-docs:
@@ -20,5 +22,7 @@ springdoc:
 
 transacoes:
   api:
-    base-url: http://localhost:5001 # URL do microserviço de transações (Flask)
+    # Pode ser sobrescrito por variável de ambiente TRANSACOES_API_BASE_URL.
+    # Quando rodando via Docker Compose unificado, usar o hostname do serviço (ex: http://transacoes-service:5001)
+    base-url: ${TRANSACOES_API_BASE_URL:http://localhost:5001}
     enabled: true # Permite desligar integração sem recompilar

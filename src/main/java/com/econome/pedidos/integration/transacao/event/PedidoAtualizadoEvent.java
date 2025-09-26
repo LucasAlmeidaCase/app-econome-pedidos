@@ -1,15 +1,13 @@
-package com.econome.pedidos.integration.transacao;
+package com.econome.pedidos.integration.transacao.event;
 
 import com.econome.pedidos.enums.TipoPedido;
 import java.math.BigDecimal;
 import java.time.LocalDate;
 
 /**
- * Evento de domínio publicado após a atualização de um Pedido.
- * Permite integração assíncrona para criação ou atualização da transação
- * financeira vinculada.
- * Contém informação se anteriormente o pedido já estava faturado para decidir
- * entre criar ou atualizar.
+ * Evento de domínio publicado após atualização de Pedido.
+ * Indica estado anterior e atual de faturamento para decidir entre criar ou
+ * atualizar transação.
  */
 public record PedidoAtualizadoEvent(
         Long idPedido,

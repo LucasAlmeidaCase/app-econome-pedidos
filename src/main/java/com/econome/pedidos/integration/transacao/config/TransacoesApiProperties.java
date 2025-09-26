@@ -1,4 +1,4 @@
-package com.econome.pedidos.integration.transacao;
+package com.econome.pedidos.integration.transacao.config;
 
 import org.springframework.boot.context.properties.ConfigurationProperties;
 import org.springframework.boot.context.properties.bind.DefaultValue;
@@ -10,6 +10,5 @@ import org.springframework.boot.context.properties.bind.DefaultValue;
 @ConfigurationProperties(prefix = "transacoes.api")
 public record TransacoesApiProperties(
         String baseUrl,
-        @DefaultValue("true") boolean enabled
-) { }
-
+        @DefaultValue("true") boolean enabled) {
+}

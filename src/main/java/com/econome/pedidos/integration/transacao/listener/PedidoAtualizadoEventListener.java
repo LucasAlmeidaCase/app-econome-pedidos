@@ -1,5 +1,8 @@
-package com.econome.pedidos.integration.transacao;
+package com.econome.pedidos.integration.transacao.listener;
 
+import com.econome.pedidos.integration.transacao.client.TransacoesClient;
+import com.econome.pedidos.integration.transacao.dto.TransacaoCreateRequest;
+import com.econome.pedidos.integration.transacao.event.PedidoAtualizadoEvent;
 import com.econome.pedidos.enums.TipoPedido;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -13,10 +16,6 @@ import java.util.HashMap;
 import java.util.Map;
 import java.util.Objects;
 
-/**
- * Listener para {@link PedidoAtualizadoEvent}. Executa lógica de upsert da
- * transação associada.
- */
 @Slf4j
 @Component
 @RequiredArgsConstructor
@@ -28,19 +27,15 @@ public class PedidoAtualizadoEventListener {
     @TransactionalEventListener(phase = TransactionPhase.AFTER_COMMIT)
     public void onPedidoAtualizado(PedidoAtualizadoEvent event) {
         if (!event.faturadoAtual()) {
-            log.debug("[PedidoAtualizadoEventListener] Pedido {} não está FATURADO após atualização. Nenhuma ação.",
-                    event.idPedido());
+            log.debug("[PedidoAtualizadoEventListener] Pedido {} não FATURADO após update.", event.idPedido());
             return;
         }
 
         String descricao = buildDescricao(event.idPedido(), event.numeroPedido());
-        String tipoTransacao = mapTipoPedidoParaTipoTransacao(event.tipoPedido());
+        String tipoTransacao = mapTipoPedido(event.tipoPedido());
         BigDecimal valor = Objects.requireNonNullElse(event.valorTotal(), BigDecimal.ZERO);
 
         if (!event.faturadoAnterior()) {
-            // Transição para FATURADO -> criar transação
-            log.debug("[PedidoAtualizadoEventListener] Pedido {} passou a FATURADO. Criando transação.",
-                    event.idPedido());
             transacoesClient.criarTransacao(new TransacaoCreateRequest(
                     descricao,
                     tipoTransacao,
@@ -52,8 +47,6 @@ public class PedidoAtualizadoEventListener {
             return;
         }
 
-        // Já era FATURADO: tentar atualização parcial; se falhar, fallback criação
-        // (idempotência fraca)
         Map<String, Object> parcial = new HashMap<>();
         parcial.put("descricao", descricao);
         parcial.put("tipo_transacao", tipoTransacao);
@@ -66,10 +59,9 @@ public class PedidoAtualizadoEventListener {
             parcial.put("data_pagamento", event.dataPagamento());
         }
 
-        boolean atualizado = transacoesClient.atualizarTransacaoPorPedido(event.idPedido(), parcial);
-        if (!atualizado) {
-            log.warn(
-                    "[PedidoAtualizadoEventListener] Falha ao atualizar transação de pedidoId={}. Tentando criar (fallback).",
+        boolean ok = transacoesClient.atualizarTransacaoPorPedido(event.idPedido(), parcial);
+        if (!ok) {
+            log.warn("[PedidoAtualizadoEventListener] Update falhou. Tentando criar (fallback) pedidoId={}",
                     event.idPedido());
             transacoesClient.criarTransacao(new TransacaoCreateRequest(
                     descricao,
@@ -82,12 +74,12 @@ public class PedidoAtualizadoEventListener {
         }
     }
 
-    private String mapTipoPedidoParaTipoTransacao(TipoPedido tipoPedido) {
+    private String mapTipoPedido(TipoPedido tipoPedido) {
         if (tipoPedido == null)
-            return "Despesa"; // fallback
+            return "Despesa";
         return switch (tipoPedido) {
-            case ENTRADA -> "Despesa"; // Entrada de itens representa saída de caixa
-            case SAIDA -> "Receita"; // Saída de itens representa entrada de caixa
+            case ENTRADA -> "Despesa";
+            case SAIDA -> "Receita";
         };
     }
 

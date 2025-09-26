@@ -41,4 +41,30 @@ public class TransacoesClient {
             log.error("[TransacoesClient] Falha ao criar transação para descricao='{}': {}", request.descricao(), ex.getMessage());
         }
     }
+
+    /**
+     * Atualiza parcialmente a transação vinculada a um pedido específico.
+     * Campos nulos não são enviados (o JSON deve conter somente o que precisa
+     * atualizar – caller deve construir isso).
+     */
+    public boolean atualizarTransacaoPorPedido(Long pedidoId, Object payloadParcial) {
+        if (!properties.enabled()) {
+            log.debug("[TransacoesClient] Integração desabilitada. Atualização ignorada para pedidoId={}", pedidoId);
+            return false;
+        }
+        try {
+            log.debug("[TransacoesClient] Atualizando transação vinculada a pedidoId={}", pedidoId);
+            transacoesRestClient.put()
+                    .uri("/transacoes/pedido/{pedidoId}", pedidoId)
+                    .contentType(MediaType.APPLICATION_JSON)
+                    .body(payloadParcial)
+                    .retrieve()
+                    .toBodilessEntity();
+            log.info("[TransacoesClient] Atualização de transação concluída para pedidoId={}", pedidoId);
+            return true;
+        } catch (Exception ex) {
+            log.error("[TransacoesClient] Falha ao atualizar transação de pedidoId={}: {}", pedidoId, ex.getMessage());
+            return false;
+        }
+    }
 }

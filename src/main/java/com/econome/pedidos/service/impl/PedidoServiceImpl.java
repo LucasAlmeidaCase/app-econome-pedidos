@@ -7,6 +7,7 @@ import com.econome.pedidos.dto.PedidoResponse;
 import com.econome.pedidos.exception.PedidoNaoEncontradoException;
 import com.econome.pedidos.enums.SituacaoPedido;
 import com.econome.pedidos.integration.transacao.PedidoCriadoEvent;
+import com.econome.pedidos.integration.transacao.PedidoAtualizadoEvent;
 import com.econome.pedidos.service.PedidoService;
 import com.econome.repository.PedidoRepository;
 import lombok.RequiredArgsConstructor;
@@ -54,8 +55,29 @@ public class PedidoServiceImpl implements PedidoService {
     public PedidoResponse atualizar(Long id, PedidoRequest request) {
         Pedido existente = pedidoRepository.findById(id)
                 .orElseThrow(() -> new PedidoNaoEncontradoException(id));
+
+        boolean faturadoAnterior = existente.getSituacaoPedido() == SituacaoPedido.FATURADO;
+
         pedidoMapper.updateEntityFromRequest(request, existente);
         Pedido atualizado = pedidoRepository.save(existente);
+
+        boolean faturadoAtual = request.situacaoPedido() == SituacaoPedido.FATURADO;
+
+        // Publica evento para integração (após commit) se existir qualquer
+        // possibilidade de criação/atualização
+        if (faturadoAtual || faturadoAnterior) {
+            eventPublisher.publishEvent(new PedidoAtualizadoEvent(
+                    atualizado.getId(),
+                    atualizado.getNumeroPedido(),
+                    atualizado.getTipoPedido(),
+                    atualizado.getValorTotal(),
+                    faturadoAtual,
+                    faturadoAnterior,
+                    request.dataVencimentoTransacao(),
+                    request.pagoTransacao(),
+                    request.dataPagamentoTransacao()));
+        }
+
         return pedidoMapper.toResponse(atualizado);
     }
 

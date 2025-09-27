@@ -4,6 +4,8 @@ API REST em Java 21 com Spring Boot para gerenciamento de Pedidos. Expõe opera�
 
 Integra-se de forma event-driven com o microserviço de Transações (Python). Quando um Pedido é criado ou atualizado com situação `FATURADO`, um Domain Event dispara a criação ou atualização da transação financeira correspondente (referência lógica via `pedido_id`). A integração foi reorganizada em subpastas (event, listener, client, config, dto) para melhor separação de responsabilidades.
 
+> Atualização recente: o fluxo de atualização agora realiza lookup (GET `/transacoes/pedido/{pedido_id}`) e depois envia PUT para `/transacao/{id}` – evitando erro 405 por tentativa de PUT direto em rota inexistente.
+
 ---
 
 ## 🧰 Tecnologias Utilizadas
@@ -21,6 +23,7 @@ Integra-se de forma event-driven com o microserviço de Transações (Python). Q
 - Docker & Docker Compose
 - RestClient (cliente HTTP moderno do Spring)
 - Domain Events (`@TransactionalEventListener`) para integração pós-commit (criação e atualização de transações)
+- CORS parametrizado (origens default: `http://localhost:5173,http://localhost:8085` via `app.cors.allowed-origins`)
 
 ---
 
@@ -212,8 +215,8 @@ Entidade Pedido (principais campos):
 
 Regras:
 
-- Somente `FATURADO` aciona criação ou atualização de transação.
-- `dataPagamentoTransacao` só é considerada se `pagoTransacao=true`.
+      - Somente `FATURADO` aciona criação ou atualização de transação.
+      - `dataPagamentoTransacao` só é considerada se `pagoTransacao=true`.
 
 ---
 
@@ -223,8 +226,8 @@ Fluxo resumido (upsert):
 
 1. Pedido criado FATURADO → evento (`PedidoCriadoEvent`) dispara criação (POST `/transacao`).
 2. Pedido atualizado para FATURADO (transição) → criação se ainda não existir.
-3. Pedido que já era FATURADO é alterado (valor, pago, vencimento, etc.) → evento (`PedidoAtualizadoEvent`) tenta PUT `/transacoes/pedido/{id}`.
-4. Se PUT falhar (ex.: transação ausente) listener faz fallback para criação.
+3. Pedido que já era FATURADO é alterado (valor, pago, vencimento, etc.) → evento (`PedidoAtualizadoEvent`) faz lookup e PUT `/transacao/{transacaoId}`.
+4. Se lookup retornar nada ou PUT falhar, listener faz fallback para criação (POST) evitando inconsistências.
 5. Transação consultável via `/transacoes/pedido/{pedido_id}` (serviço Python).
 
 Configuração de rede necessária (ambientes containerizados separados):
@@ -240,6 +243,7 @@ docker compose exec app-econome-pedidos sh -c "apk add --no-cache curl || true; 
 ```
 
 Próximos aprimoramentos planejados:
+
 - Outbox + mensageria (resiliência)
 - Idempotência baseada em `pedido_id`
 - Monitoramento / tracing distribuído
@@ -250,11 +254,11 @@ Próximos aprimoramentos planejados:
 
 | Método | Caminho         | Descrição            |
 |--------|-----------------|----------------------|
-| GET    | /api/pedidos        | Lista pedidos        |
-| GET    | /api/pedidos/{id}   | Busca por id         |
-| POST   | /api/pedidos        | Cria novo pedido     |
-| PUT    | /api/pedidos/{id}   | Atualiza pedido      |
-| DELETE | /api/pedidos/{id}   | Remove pedido        |
+| GET    | /api/pedidos            | Lista pedidos        |
+| GET    | /api/pedidos/{id}       | Busca por id         |
+| POST   | /api/pedidos            | Cria novo pedido     |
+| PUT    | /api/pedidos/{id}       | Atualiza pedido      |
+| DELETE | /api/pedidos/{id}       | Remove pedido        |
 
 > Paginação e filtros (situacao, período) planejados no roadmap.
 

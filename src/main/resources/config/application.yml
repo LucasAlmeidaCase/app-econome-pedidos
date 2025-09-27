@@ -20,6 +20,12 @@ springdoc:
     enabled: true
     path: /swagger-ui.html
 
+# Propriedades custom da aplicação (não Spring core)
+app:
+  cors:
+    # Origens padrão permitidas (frontend dev e frontend containerizado)
+    allowed-origins: http://localhost:5173,http://localhost:8085
+
 transacoes:
   api:
     # Pode ser sobrescrito por variável de ambiente TRANSACOES_API_BASE_URL.

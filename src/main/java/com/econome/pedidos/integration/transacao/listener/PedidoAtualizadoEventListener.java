@@ -77,6 +77,9 @@ public class PedidoAtualizadoEventListener {
     private String mapTipoPedido(TipoPedido tipoPedido) {
         if (tipoPedido == null)
             return "Despesa";
+        // Regras de mapeamento atuais:
+        // Pedido ENTRADA (compra) gera transação de Despesa.
+        // Pedido SAIDA (venda) gera transação de Receita.
         return switch (tipoPedido) {
             case ENTRADA -> "Despesa";
             case SAIDA -> "Receita";

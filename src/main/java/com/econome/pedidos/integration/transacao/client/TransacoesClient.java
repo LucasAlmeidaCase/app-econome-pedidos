@@ -45,17 +45,33 @@ public class TransacoesClient {
             return false;
         }
         try {
-            transacoesRestClient.put()
+            // 1) Buscar a transação pelo pedido_id
+            TransacaoResponse transacao = transacoesRestClient.get()
                     .uri("/transacoes/pedido/{pedidoId}", pedidoId)
+                    .retrieve()
+                    .body(TransacaoResponse.class);
+            if (transacao == null || transacao.id() == null) {
+                log.warn("[TransacoesClient] Nenhuma transação encontrada para pedidoId={}", pedidoId);
+                return false;
+            }
+            // 2) Atualizar usando endpoint de update por id
+            transacoesRestClient.put()
+                    .uri("/transacao/{id}", transacao.id())
                     .contentType(MediaType.APPLICATION_JSON)
                     .body(payloadParcial)
                     .retrieve()
                     .toBodilessEntity();
-            log.info("[TransacoesClient] Atualizada transação pedidoId={}", pedidoId);
+            log.info("[TransacoesClient] Atualizada transação id={} (pedidoId={})", transacao.id(), pedidoId);
             return true;
         } catch (Exception ex) {
             log.error("[TransacoesClient] Erro ao atualizar transação pedidoId={}: {}", pedidoId, ex.getMessage());
             return false;
         }
+    }
+
+    /**
+     * Record interno para deserializar resposta mínima da API de Transações.
+     */
+    private record TransacaoResponse(Long id) {
     }
 }

@@ -39,7 +39,7 @@ public class PedidoController {
     @GetMapping
     @Operation(summary = "Listar pedidos", description = "Retorna a lista de todos os pedidos")
     @ApiResponse(responseCode = "200", description = "Lista retornada com sucesso")
-    public List<PedidoResponse> listar() {
+    public List<PedidoResponse> listar(@RequestParam(name = "embed", required = false) String embed) {
         return pedidoService.listarTodos();
     }
 

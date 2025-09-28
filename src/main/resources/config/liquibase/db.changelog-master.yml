@@ -2,3 +2,6 @@ databaseChangeLog:
   - include:
       file: changelog/db.changelog-0001-create-pedidos.yml
       relativeToChangelogFile: true
+  - include:
+      file: changelog/db.changelog-0002-add-participante-id.yml
+      relativeToChangelogFile: true

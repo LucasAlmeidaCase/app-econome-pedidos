@@ -1,0 +1,26 @@
+databaseChangeLog:
+  - changeSet:
+      id: 0002-add-participante-id
+      author: system
+      changes:
+        - addColumn:
+            tableName: pedidos
+            columns:
+              - column:
+                  name: participante_id
+                  type: BIGINT
+                  constraints:
+                    nullable: true
+        - createIndex:
+            tableName: pedidos
+            indexName: idx_pedidos_participante_id
+            columns:
+              - column:
+                  name: participante_id
+      rollback:
+        - dropIndex:
+            indexName: idx_pedidos_participante_id
+            tableName: pedidos
+        - dropColumn:
+            columnName: participante_id
+            tableName: pedidos

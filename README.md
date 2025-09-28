@@ -6,6 +6,8 @@ Integra-se de forma event-driven com o microserviço de Transações (Python). Q
 
 > Atualização recente: o fluxo de atualização agora realiza lookup (GET `/transacoes/pedido/{pedido_id}`) e depois envia PUT para `/transacao/{id}` – evitando erro 405 por tentativa de PUT direto em rota inexistente.
 
+> Novo (enriquecimento): respostas de listagem, busca, criação e atualização agora podem incluir objeto `participante` embutido com base no `participanteId` associado ao Pedido. Esse enrichment é resolvido de forma síncrona consultando o microserviço de Participantes.
+
 ---
 
 ## 🧰 Tecnologias Utilizadas
@@ -24,6 +26,7 @@ Integra-se de forma event-driven com o microserviço de Transações (Python). Q
 - RestClient (cliente HTTP moderno do Spring)
 - Domain Events (`@TransactionalEventListener`) para integração pós-commit (criação e atualização de transações)
 - CORS parametrizado (origens default: `http://localhost:5173,http://localhost:8085` via `app.cors.allowed-origins`)
+- Enriquecimento de leitura agregando `participante` (Read Model) mantendo `participanteId` no payload
 
 ---
 
@@ -169,6 +172,7 @@ app-econome-pedidos/
 ## 🧠 Principais Funcionalidades
 
 - CRUD de Pedidos (GET/POST/PUT/DELETE)
+- Enriquecimento de participante nas respostas (inclui objeto resumido quando ID presente)
 - Validação de payload com Bean Validation (@Valid)
 - Mapeamento DTO/Entidade com MapStruct
 - Tratamento de erros centralizado (@ControllerAdvice) com payload consistente (ProblemDetails)
@@ -230,6 +234,40 @@ Fluxo resumido (upsert):
 4. Se lookup retornar nada ou PUT falhar, listener faz fallback para criação (POST) evitando inconsistências.
 5. Transação consultável via `/transacoes/pedido/{pedido_id}` (serviço Python).
 
+### Enriquecimento de Participante
+
+Workflow:
+
+1. Pedido persistido com `participanteId`.
+2. Serviço de Pedidos coleta IDs distintos e chama Participantes (N chamadas — futura otimização batch).
+3. Monta `PedidoResponse` incluindo campo `participante` (record `ParticipanteResumo`).
+4. POST/PUT também retornam resposta enriquecida para evitar requisições extras do front.
+
+Exemplo de resposta:
+
+```jsonc
+{
+   "id": 19,
+   "numeroPedido": "PED-140",
+   "participanteId": 3,
+   "participante": {
+      "id": 3,
+      "codigo": "PART-3",
+      "nome": "EMPRESA XYZ",
+      "cpfCnpj": "00349045000183",
+      "tipoPessoa": "JURIDICA",
+      "tipoParticipante": "FORNECEDOR"
+   }
+}
+```
+
+Racional para manter `participanteId` mesmo com objeto:
+
+1. Fallback se enrichment falhar / for desabilitado (feature flag futura).
+2. Requests de escrita continuam simples (enviar só ID).
+3. Possibilita no futuro payload slim sem embed (`?embed=participante`).
+4. Facilita indexação / filtros sem navegar estrutura aninhada.
+
 Configuração de rede necessária (ambientes containerizados separados):
 
 ```bash
@@ -238,6 +276,7 @@ docker network connect econome-net app-econome-transacoes
 ```
 
 Verificação rápida:
+ 
 ```bash
 docker compose exec app-econome-pedidos sh -c "apk add --no-cache curl || true; curl -s http://app-econome-transacoes:5001/openapi | head"
 ```

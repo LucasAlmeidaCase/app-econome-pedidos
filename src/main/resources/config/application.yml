@@ -31,4 +31,9 @@ transacoes:
     # Pode ser sobrescrito por variável de ambiente TRANSACOES_API_BASE_URL.
     # Quando rodando via Docker Compose unificado, usar o hostname do serviço (ex: http://transacoes-service:5001)
     base-url: ${TRANSACOES_API_BASE_URL:http://localhost:5001}
-    enabled: true # Permite desligar integração sem recompilar
+    enabled: ${TRANSACOES_API_ENABLED:true} # Permite desligar integração sem recompilar
+participantes:
+  api:
+    # Base agora somente host:porta. O client adiciona /api/participantes nas chamadas.
+    base-url: ${PARTICIPANTES_API_BASE_URL:http://localhost:8081}
+    enabled: ${PARTICIPANTES_API_ENABLED:true} # Permite desligar integração sem recompilar

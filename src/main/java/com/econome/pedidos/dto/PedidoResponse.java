@@ -4,6 +4,8 @@ import com.econome.pedidos.enums.SituacaoPedido;
 import com.econome.pedidos.enums.TipoPedido;
 import com.fasterxml.jackson.annotation.JsonFormat;
 import com.fasterxml.jackson.annotation.JsonInclude;
+import com.fasterxml.jackson.annotation.JsonProperty;
+import com.econome.pedidos.integration.participante.dto.ParticipanteResumo;
 import io.swagger.v3.oas.annotations.media.Schema;
 
 import java.math.BigDecimal;
@@ -22,6 +24,9 @@ public record PedidoResponse(
         @Schema(description = "Número do pedido", example = "PED-123") String numeroPedido,
         @Schema(description = "Tipo do pedido (ENTRADA ou SAIDA)") TipoPedido tipoPedido,
         @Schema(description = "Situação do pedido (PENDENTE, FATURADO, CANCELADO)") SituacaoPedido situacaoPedido,
-        @Schema(description = "Valor total do pedido", example = "150.00") BigDecimal valorTotal
+        @Schema(description = "Valor total do pedido", example = "150.00") BigDecimal valorTotal,
+        @Schema(description = "Identificador de participante associado", example = "10") Long participanteId,
+        @Schema(description = "Dados resumidos do participante quando embutido")
+        @JsonProperty("participante") ParticipanteResumo participanteResumo
 ) {
 }

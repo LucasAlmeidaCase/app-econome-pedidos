@@ -18,5 +18,6 @@ public record PedidoAtualizadoEvent(
         boolean faturadoAnterior,
         LocalDate dataVencimento,
         Boolean pago,
-        LocalDate dataPagamento) {
+        LocalDate dataPagamento,
+        Long participanteId) {
 }

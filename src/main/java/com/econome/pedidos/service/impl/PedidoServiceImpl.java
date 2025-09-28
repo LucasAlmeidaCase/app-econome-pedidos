@@ -9,6 +9,7 @@ import com.econome.pedidos.enums.SituacaoPedido;
 import com.econome.pedidos.integration.transacao.event.PedidoCriadoEvent;
 import com.econome.pedidos.integration.transacao.event.PedidoAtualizadoEvent;
 import com.econome.pedidos.service.PedidoService;
+import com.econome.pedidos.service.EnriquecimentoPedidoService;
 import com.econome.repository.PedidoRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.context.ApplicationEventPublisher;
@@ -31,6 +32,7 @@ public class PedidoServiceImpl implements PedidoService {
     private final PedidoRepository pedidoRepository;
     private final PedidoMapper pedidoMapper;
     private final ApplicationEventPublisher eventPublisher;
+    private final EnriquecimentoPedidoService enriquecimentoPedidoService;
 
     @Override
     @Transactional
@@ -45,9 +47,11 @@ public class PedidoServiceImpl implements PedidoService {
                 request.situacaoPedido() == SituacaoPedido.FATURADO,
                 request.dataVencimentoTransacao(),
                 request.pagoTransacao(),
-                request.dataPagamentoTransacao()
+                request.dataPagamentoTransacao(),
+                request.participanteId()
         ));
-        return pedidoMapper.toResponse(salvo);
+        // Enriquecimento para já retornar participante embutido no POST
+        return enriquecimentoPedidoService.enriquecer(pedidoMapper.toResponse(salvo));
     }
 
     @Override
@@ -75,10 +79,12 @@ public class PedidoServiceImpl implements PedidoService {
                     faturadoAnterior,
                     request.dataVencimentoTransacao(),
                     request.pagoTransacao(),
-                    request.dataPagamentoTransacao()));
+                    request.dataPagamentoTransacao(),
+                    request.participanteId()));
         }
 
-        return pedidoMapper.toResponse(atualizado);
+        // Enriquecer resposta para manter consistência com GET
+        return enriquecimentoPedidoService.enriquecer(pedidoMapper.toResponse(atualizado));
     }
 
     @Override
@@ -86,13 +92,14 @@ public class PedidoServiceImpl implements PedidoService {
     public PedidoResponse buscarPorId(Long id) {
         return pedidoRepository.findById(id)
                 .map(pedidoMapper::toResponse)
+                .map(enriquecimentoPedidoService::enriquecer)
                 .orElseThrow(() -> new PedidoNaoEncontradoException(id));
     }
 
     @Override
     @Transactional(readOnly = true)
     public List<PedidoResponse> listarTodos() {
-        return pedidoMapper.toResponseList(pedidoRepository.findAll());
+        return enriquecimentoPedidoService.enriquecer(pedidoMapper.toResponseList(pedidoRepository.findAll()));
     }
 
     @Override

@@ -43,7 +43,8 @@ public class PedidoAtualizadoEventListener {
                     Boolean.TRUE.equals(event.pago()),
                     event.dataVencimento(),
                     Boolean.TRUE.equals(event.pago()) ? event.dataPagamento() : null,
-                    event.idPedido()));
+                    event.idPedido(),
+                    event.participanteId()));
             return;
         }
 
@@ -59,6 +60,9 @@ public class PedidoAtualizadoEventListener {
             parcial.put("data_pagamento", event.dataPagamento());
         }
 
+        if (event.participanteId() != null) {
+            parcial.put("participant_id", event.participanteId());
+        }
         boolean ok = transacoesClient.atualizarTransacaoPorPedido(event.idPedido(), parcial);
         if (!ok) {
             log.warn("[PedidoAtualizadoEventListener] Update falhou. Tentando criar (fallback) pedidoId={}",
@@ -70,7 +74,8 @@ public class PedidoAtualizadoEventListener {
                     Boolean.TRUE.equals(event.pago()),
                     event.dataVencimento(),
                     Boolean.TRUE.equals(event.pago()) ? event.dataPagamento() : null,
-                    event.idPedido()));
+            event.idPedido(),
+            event.participanteId()));
         }
     }
 

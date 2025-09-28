@@ -14,5 +14,6 @@ public record TransacaoCreateRequest(
         boolean pago,
         LocalDate data_vencimento,
         LocalDate data_pagamento,
-        Long pedido_id) {
+        Long pedido_id,
+        Long participante_id) {
 }

@@ -44,4 +44,8 @@ public class Pedido implements Serializable {
     @Column(name = "valor_total")
     private BigDecimal valorTotal;
 
+    // Associação lógica (não foreign key) com Participante (microserviço separado)
+    @Column(name = "participante_id")
+    private Long participanteId;
+
 }

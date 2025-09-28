@@ -16,8 +16,17 @@ import org.springframework.web.client.RestClient;
 @RequiredArgsConstructor
 public class TransacoesClient {
 
-    private final RestClient transacoesRestClient;
+    private RestClient transacoesRestClient;
     private final TransacoesApiProperties properties;
+
+    private RestClient client() {
+        if (transacoesRestClient == null) {
+            String base = properties.baseUrl();
+            if (base.endsWith("/")) base = base.substring(0, base.length() - 1);
+            transacoesRestClient = RestClient.builder().baseUrl(base).build();
+        }
+        return transacoesRestClient;
+    }
 
     public void criarTransacao(TransacaoCreateRequest request) {
         if (!properties.enabled()) {
@@ -26,7 +35,7 @@ public class TransacoesClient {
             return;
         }
         try {
-            transacoesRestClient.post()
+            client().post()
                     .uri("/transacao")
                     .contentType(MediaType.APPLICATION_JSON)
                     .body(request)
@@ -46,7 +55,7 @@ public class TransacoesClient {
         }
         try {
             // 1) Buscar a transação pelo pedido_id
-            TransacaoResponse transacao = transacoesRestClient.get()
+            TransacaoResponse transacao = client().get()
                     .uri("/transacoes/pedido/{pedidoId}", pedidoId)
                     .retrieve()
                     .body(TransacaoResponse.class);
@@ -55,7 +64,7 @@ public class TransacoesClient {
                 return false;
             }
             // 2) Atualizar usando endpoint de update por id
-            transacoesRestClient.put()
+            client().put()
                     .uri("/transacao/{id}", transacao.id())
                     .contentType(MediaType.APPLICATION_JSON)
                     .body(payloadParcial)

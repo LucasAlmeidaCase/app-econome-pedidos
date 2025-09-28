@@ -31,6 +31,12 @@ services:
       SPRING_PROFILES_ACTIVE: ${SPRING_PROFILES_ACTIVE}
       # Hostname do serviço de transações na rede externa econome-net
       TRANSACOES_API_BASE_URL: ${TRANSACOES_API_BASE_URL}
+      # Permite desligar integração (true/false). Default true no application.yml
+      TRANSACOES_API_ENABLED: ${TRANSACOES_API_ENABLED}
+      # Hostname do serviço de participantes (para enriquecer pedidos). Se não definido, usa default do application.yml
+      PARTICIPANTES_API_BASE_URL: ${PARTICIPANTES_API_BASE_URL}
+      # Permite desligar enriquecimento (true/false). Default true no application.yml
+      PARTICIPANTES_API_ENABLED: ${PARTICIPANTES_API_ENABLED}
     ports:
       - '8080:8080'
     networks:

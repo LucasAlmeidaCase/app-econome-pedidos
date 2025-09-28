@@ -40,7 +40,8 @@ public class PedidoCriadoEventListener {
                 Boolean.TRUE.equals(event.pago()),
                 event.dataVencimento(),
                 Boolean.TRUE.equals(event.pago()) ? event.dataPagamento() : null,
-                event.idPedido()));
+                event.idPedido(),
+                event.participanteId()));
     }
 
     private String mapTipoPedido(TipoPedido tipoPedido) {

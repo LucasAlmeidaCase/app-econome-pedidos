@@ -2,6 +2,7 @@ package com.econome.pedidos.dto;
 
 import com.econome.domain.Pedido;
 import org.mapstruct.Mapper;
+import org.mapstruct.Mapping;
 import org.mapstruct.MappingTarget;
 
 import java.util.List;
@@ -16,11 +17,13 @@ public interface PedidoMapper {
     /**
      * Converte os dados de requisição em uma nova entidade Pedido.
      */
+    @Mapping(target = "id", ignore = true)
     Pedido toEntity(PedidoRequest request);
 
     /**
      * Aplica os dados de requisição em uma entidade existente (atualização parcial total).
      */
+    @Mapping(target = "id", ignore = true)
     void updateEntityFromRequest(PedidoRequest request, @MappingTarget Pedido entity);
 
     /**
@@ -32,4 +35,6 @@ public interface PedidoMapper {
      * Converte uma lista de entidades para a lista correspondente de DTOs de resposta.
      */
     List<PedidoResponse> toResponseList(List<Pedido> entities);
+
+    // Nota: participanteId é mapeado automaticamente por possuir o mesmo nome em DTO e entidade.
 }

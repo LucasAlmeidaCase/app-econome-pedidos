@@ -45,7 +45,8 @@ public class PedidoServiceImpl implements PedidoService {
                 request.situacaoPedido() == SituacaoPedido.FATURADO,
                 request.dataVencimentoTransacao(),
                 request.pagoTransacao(),
-                request.dataPagamentoTransacao()
+                request.dataPagamentoTransacao(),
+                request.participanteId()
         ));
         return pedidoMapper.toResponse(salvo);
     }
@@ -75,7 +76,8 @@ public class PedidoServiceImpl implements PedidoService {
                     faturadoAnterior,
                     request.dataVencimentoTransacao(),
                     request.pagoTransacao(),
-                    request.dataPagamentoTransacao()));
+                    request.dataPagamentoTransacao(),
+                    request.participanteId()));
         }
 
         return pedidoMapper.toResponse(atualizado);

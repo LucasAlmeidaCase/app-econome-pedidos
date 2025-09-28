@@ -36,6 +36,7 @@ public record PedidoRequest(
         @JsonFormat(pattern = "yyyy-MM-dd") LocalDate dataVencimentoTransacao,
         @Schema(description = "Indicador se a transação já está paga (apenas se FATURADO)") Boolean pagoTransacao,
         @Schema(description = "Data de pagamento da transação (apenas se pagoTransacao=true)", example = "2025-09-30")
-        @JsonFormat(pattern = "yyyy-MM-dd") LocalDate dataPagamentoTransacao
+        @JsonFormat(pattern = "yyyy-MM-dd") LocalDate dataPagamentoTransacao,
+        @Schema(description = "Identificador lógico do participante relacionado ao pedido", example = "10") Long participanteId
 ) {
 }

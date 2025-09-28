@@ -22,6 +22,7 @@ public record PedidoResponse(
         @Schema(description = "Número do pedido", example = "PED-123") String numeroPedido,
         @Schema(description = "Tipo do pedido (ENTRADA ou SAIDA)") TipoPedido tipoPedido,
         @Schema(description = "Situação do pedido (PENDENTE, FATURADO, CANCELADO)") SituacaoPedido situacaoPedido,
-        @Schema(description = "Valor total do pedido", example = "150.00") BigDecimal valorTotal
+        @Schema(description = "Valor total do pedido", example = "150.00") BigDecimal valorTotal,
+        @Schema(description = "Identificador de participante associado", example = "10") Long participanteId
 ) {
 }

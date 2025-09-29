@@ -13,6 +13,11 @@ spring:
   liquibase:
     enabled: ${SPRING_LIQUIBASE_ENABLED:true}
     change-log: classpath:config/liquibase/db.changelog-master.yml
+  jackson:
+    serialization:
+      write-dates-as-timestamps: false  # Garante LocalDate como 'yyyy-MM-dd' em vez de array
+    date-format: yyyy-MM-dd
+    time-zone: America/Sao_Paulo
 springdoc:
   api-docs:
     enabled: true
